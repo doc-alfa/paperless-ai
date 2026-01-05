@@ -1675,21 +1675,34 @@ async function buildUpdateData(analysis, doc) {
 
     // First, add any new/updated fields
     for (const key in customFields) {
+      if (!Object.hasOwn(customFields, key)) continue;
+
       const customField = customFields[key];
-      
-      if (!customField.field_name || !customField.value?.trim()) {
+
+      if (!customField.field_name || customField.value === null || customField.value === undefined) {
         console.log(`[DEBUG] Skipping empty/invalid custom field`);
         continue;
       }
 
       const fieldDetails = await paperlessService.findExistingCustomField(customField.field_name);
-      if (fieldDetails?.id) {
-        processedFields.push({
-          field: fieldDetails.id,
-          value: customField.value.trim()
-        });
-        processedFieldIds.add(fieldDetails.id);
+      if (!fieldDetails?.id) {
+        continue;
       }
+
+      const finalValue = typeof customField.value === 'string'
+        ? customField.value.trim()
+        : customField.value;
+
+      // Empty strings are skipped, but falsy values (0, false) are preserved
+      if (finalValue === '') {
+        continue;
+      }
+
+      processedFields.push({
+        field: fieldDetails.id,
+        value: finalValue
+      });
+      processedFieldIds.add(fieldDetails.id);
     }
 
     // Then add any existing fields that weren't updated
